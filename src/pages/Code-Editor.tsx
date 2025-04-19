@@ -7,7 +7,7 @@ import Editor from "@monaco-editor/react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Play, CheckCircle, Copy, Heart, RefreshCw, Home, Code, ArrowRight } from "lucide-react"
+import { Clock, Play, CheckCircle, Copy, Heart, RefreshCw, Home, Code, ArrowRight } from 'lucide-react'
 import { toast } from "sonner"
 import { codingProblems } from "../problems/CodingProblems"
 import { TestResultsDialog } from "../pages/test-results-dialog"
@@ -44,8 +44,8 @@ const JUDGE0_API = "http://10.5.0.21:5000"
 
 // ---------------------- UTILS ------------------------ //
 
-function encodeBase64(text: string): string {
-    return btoa(unescape(encodeURIComponent(text)))
+function encodeBase64(str: string): string {
+    return btoa(unescape(encodeURIComponent(str)))
 }
 
 function decodeBase64(base64: string): string {
@@ -73,7 +73,8 @@ export default function CodeEditorApp() {
     const [problems] = useState(codingProblems)
     const [selectedProblemId, setSelectedProblemId] = useState(problems[0].id)
     const [selectedProblem, setSelectedProblem] = useState(problems[0])
-    const [activeTab, setActiveTab] = useState("problem")
+    const [sidebarTab, setSidebarTab] = useState("problem")
+    const [bottomTab, setBottomTab] = useState("terminal")
     const [activeTestTab, setActiveTestTab] = useState("1")
     const [testResults, setTestResults] = useState<{ id: number; passed: boolean; output: string; expected: string }[]>(
         [],
@@ -97,7 +98,7 @@ export default function CodeEditorApp() {
 
         try {
             // First, switch to terminal tab immediately
-            setActiveTab("terminal")
+            setBottomTab("terminal")
 
             // If no arguments provided, show the "No arguments provided" message
             if (!stdin.trim()) {
@@ -345,7 +346,7 @@ export default function CodeEditorApp() {
             setTestResults(results)
 
             // Switch to terminal tab after running all tests
-            setActiveTab("terminal")
+            setBottomTab("terminal")
 
             const allPassed = results.every((r) => r.passed)
             setShowResultsDialog(true)
@@ -379,7 +380,7 @@ export default function CodeEditorApp() {
             setOutput(result.output)
 
             // Switch to terminal tab after running
-            setActiveTab("terminal")
+            setBottomTab("terminal")
 
             if (result.passed) {
                 toast.success("Test case passed!", { description: `Test case #${testCaseId} executed successfully.` })
@@ -459,7 +460,7 @@ export default function CodeEditorApp() {
             <div className="flex flex-1 overflow-hidden">
                 {/* Left sidebar */}
                 <div className="w-[350px] bg-[#2d2d3f] text-white overflow-y-auto">
-                    <Tabs defaultValue="problem" value={activeTab} onValueChange={setActiveTab}>
+                    <Tabs defaultValue="problem" value={sidebarTab} onValueChange={setSidebarTab}>
                         <TabsList className="w-full grid grid-cols-3">
                             <TabsTrigger value="problem">Problem</TabsTrigger>
                             <TabsTrigger value="instructions">Instructions</TabsTrigger>
@@ -635,7 +636,7 @@ export default function CodeEditorApp() {
                                 className="flex-1 bg-transparent text-white text-sm focus:outline-none"
                                 placeholder="Enter arguments here..."
                             />
-                            <Button size="sm" variant="outline" className="ml-2" onClick={runCodeWithCLI} disabled={isRunning}>
+                            <Button size="sm" className="ml-2" onClick={runCodeWithCLI} disabled={isRunning}>
                                 <Play className="h-3 w-3 mr-1" />
                                 Run
                             </Button>
@@ -644,7 +645,7 @@ export default function CodeEditorApp() {
 
                     {/* Test cases tabs */}
                     <div className="bg-[#2d2d3f] border-t border-gray-700">
-                        <Tabs defaultValue="test-cases" value={activeTab} onValueChange={setActiveTab} ref={tabsRef}>
+                        <Tabs defaultValue="test-cases" value={bottomTab} onValueChange={setBottomTab} ref={tabsRef}>
                             <div className="flex items-center px-4 py-2 border-b border-gray-700">
                                 <TabsList className="bg-transparent border-0">
                                     <TabsTrigger value="test-cases" className="text-sm data-[state=active]:bg-[#3d3d4f]">
@@ -659,7 +660,7 @@ export default function CodeEditorApp() {
                                 </TabsList>
                                 <div className="ml-auto flex space-x-2">
                                     {/* Removed the Run button here to avoid duplication */}
-                                    <Button size="sm" variant="outline" onClick={validateSolution} disabled={isRunning}>
+                                    <Button size="sm" onClick={validateSolution} disabled={isRunning}>
                                         <CheckCircle className="h-3 w-3 mr-1" />
                                         Validate
                                     </Button>
