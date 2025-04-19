@@ -69,7 +69,6 @@ export default function CodeEditorApp() {
     const [completed, setCompleted] = useState(false)
     const editorRef = useRef(null)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
-    const tabsRef = useRef<HTMLDivElement>(null)
     const [showResultsDialog, setShowResultsDialog] = useState(false)
 
     // Completely rewritten runCodeWithCLI function to use command_line_arguments parameter
@@ -353,32 +352,6 @@ export default function CodeEditorApp() {
         await runAllTests()
     }
 
-    const runSingleTest = async (testCaseId: string) => {
-        const testCase = selectedProblem.testCases.find((tc) => tc.id.toString() === testCaseId)
-        if (!testCase) return
-
-        setIsRunning(true)
-        setStdin(testCase.arguments)
-
-        try {
-            const result = await runTestCase(testCase)
-            setOutput(result.output)
-
-            // Switch to terminal tab after running
-            setBottomTab("terminal")
-
-            if (result.passed) {
-                toast.success("Test case passed!", { description: `Test case #${testCaseId} executed successfully.` })
-            } else {
-                toast.error("Test case failed", { description: `Expected: ${testCase.expectedOutput}, Got: ${result.output}` })
-            }
-        } catch (error: any) {
-            console.error(error)
-            setOutput(`Error: ${error.message || "Unknown error occurred"}`)
-        } finally {
-            setIsRunning(false)
-        }
-    }
 
     const resetTimer = () => {
         setElapsedTime(0)
