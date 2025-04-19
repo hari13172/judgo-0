@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, Play, CheckCircle, Copy, Heart, RefreshCw, Home, Code, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 import { codingProblems } from "../problems/CodingProblems"
+import { TestResultsDialog } from "../pages/test-results-dialog"
 
 // ------------------------ CONFIG -------------------------------- //
 
@@ -83,6 +84,7 @@ export default function CodeEditorApp() {
     const editorRef = useRef(null)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
     const tabsRef = useRef<HTMLDivElement>(null)
+    const [showResultsDialog, setShowResultsDialog] = useState(false)
 
     // Completely rewritten runCodeWithCLI function to use command_line_arguments parameter
     const runCodeWithCLI = async () => {
@@ -346,6 +348,7 @@ export default function CodeEditorApp() {
             setActiveTab("terminal")
 
             const allPassed = results.every((r) => r.passed)
+            setShowResultsDialog(true)
             if (allPassed) {
                 setCompleted(true)
                 toast.success("All test cases passed!", { description: "Great job!" })
@@ -397,6 +400,15 @@ export default function CodeEditorApp() {
 
     return (
         <div className="flex flex-col h-screen bg-[#1e1e2e]">
+
+            <TestResultsDialog
+                open={showResultsDialog}
+                onOpenChange={setShowResultsDialog}
+                results={testResults}
+                totalTime={formatTime(elapsedTime)}
+                problemTitle={selectedProblem.title}
+                allPassed={testResults.length > 0 && testResults.every((r) => r.passed)}
+            />
             {/* Header */}
             <header className="bg-[#1e1e2e] text-white p-2 flex items-center justify-between border-b border-gray-700">
                 <div className="flex items-center space-x-4">

@@ -92,7 +92,7 @@ function App() {
             </div>
           </div>
           <div className="h-[calc(100%-64px)]">
-            <CodeEditorApp selectedProblem={selectedProblem} />
+            <CodeEditorApp />
           </div>
         </div>
       ) : (
