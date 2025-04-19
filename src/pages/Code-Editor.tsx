@@ -36,8 +36,10 @@ const LANGUAGES = [
     },
 ]
 
+
+
 // Use the custom API endpoint provided in the user's code
-const JUDGE0_API = "http://10.5.0.250:2358"
+const JUDGE0_API = "http://10.5.0.21:5000"
 
 // ---------------------- UTILS ------------------------ //
 
@@ -105,7 +107,7 @@ export default function CodeEditorApp() {
             console.log("Running with CLI arguments:", stdin)
 
             // Send the code to Judge0 with command_line_arguments parameter
-            const response = await fetch(`${JUDGE0_API}/submissions?wait=true`, {
+            const response = await fetch(`${JUDGE0_API}/submit`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -277,7 +279,7 @@ export default function CodeEditorApp() {
         try {
             setIsRunning(true)
 
-            const response = await fetch(`${JUDGE0_API}/submissions?wait=true`, {
+            const response = await fetch(`${JUDGE0_API}/submit`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
