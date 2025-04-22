@@ -90,33 +90,37 @@ export const codingProblems: Problem[] = [
             },
         ],
         starterCode: {
-            71: `import sys
+            71: `
+            
+import sys
   
-  def reverse_string(s):
-      # Write your code here
-      pass
+def reverse_string(s):
+    # Write your code here
+    pass
   
   # Parse command line arguments
-  if len(sys.argv) > 1:
-      input_string = sys.argv[1]
-      result = reverse_string(input_string)
-      print(result)
-  else:
-      print("No arguments provided.")
+if len(sys.argv) > 1:
+    input_string = sys.argv[1]
+    result = reverse_string(input_string)
+    print(result)
+else:
+    print("No arguments provided.")
   `,
-            63: `function reverseString(s) {
+            63: `
+            
+function reverseString(s) {
       // Write your code here
-  }
+}
   
-  // Parse command line arguments
-  const args = process.argv.slice(2);
-  if (args.length > 0) {
-      const inputString = args[0];
-      const result = reverseString(inputString);
-      console.log(result);
-  } else {
-      console.log("No arguments provided.");
-  }
+// Parse command line arguments
+const args = process.argv.slice(2);
+if (args.length > 0) {
+    const inputString = args[0];
+    const result = reverseString(inputString);
+    console.log(result);
+} else {
+    console.log("No arguments provided.");
+}
   `,
             54: `#include <iostream>
   #include <string>

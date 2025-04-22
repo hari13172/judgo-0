@@ -63,7 +63,7 @@ export function EditorHeader({
                     <Clock className="h-4 w-4 text-gray-400" />
                     <span className="text-sm font-mono text-gray-400">Time: {formatTime(elapsedTime)}</span>
                 </div>
-                <Button variant="outline" size="sm" className="text-xs" onClick={resetTimer}>
+                <Button size="sm" className="text-xs" onClick={resetTimer}>
                     <RefreshCw className="h-3 w-3 mr-1" />
                     Renew
                 </Button>
