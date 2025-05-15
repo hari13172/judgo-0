@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { Button } from "@/components/ui/button"
 import { Heart } from "lucide-react"
 
@@ -19,12 +18,17 @@ export function LanguageSelector({ selectedLanguage, languages, handleLanguageCh
                     value={selectedLanguage}
                     onChange={handleLanguageChange}
                     className="bg-[#2d2d3f] text-white text-sm rounded-md border border-gray-700 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={languages.length === 0}
                 >
-                    {languages.map((lang) => (
-                        <option key={lang.id} value={lang.name}>
-                            {lang.name}
-                        </option>
-                    ))}
+                    {languages.length === 0 ? (
+                        <option value="">No languages available</option>
+                    ) : (
+                        languages.map((lang) => (
+                            <option key={lang.id} value={lang.name}>
+                                {lang.name}
+                            </option>
+                        ))
+                    )}
                 </select>
             </div>
             <div className="flex items-center space-x-2">

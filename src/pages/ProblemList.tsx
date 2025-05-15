@@ -16,6 +16,7 @@ import {
     Maximize2,
     Shield,
     Monitor,
+    Mic,
 } from "lucide-react"
 import {
     AlertDialog,
@@ -298,6 +299,17 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
                                 </div>
                             </div>
 
+                            <div className="flex items-center gap-3 bg-[#2d2d3f] border border-gray-700 rounded-md p-3 my-3">
+                                <Mic className="h-8 w-8 text-purple-400 flex-shrink-0" />
+                                <div>
+                                    <h3 className="font-medium text-white">Audio Monitoring</h3>
+                                    <p className="text-sm text-gray-300">
+                                        Your microphone will be used to detect background noise. Please ensure you're in a quiet
+                                        environment.
+                                    </p>
+                                </div>
+                            </div>
+
                             <div className="bg-[#2d2d3f] border border-gray-700 rounded-md p-3 my-3">
                                 <p className="font-semibold text-white mb-2">Security measures:</p>
                                 <ul className="list-disc pl-5 space-y-1 text-gray-300">
@@ -311,6 +323,10 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
                                     </li>
                                     <li>
                                         <span className="text-yellow-400 font-medium">Three warnings:</span> Exiting full screen mode
+                                    </li>
+                                    <li>
+                                        <span className="text-yellow-400 font-medium">Noise detection:</span> Background noise will be
+                                        monitored and flagged
                                     </li>
                                 </ul>
                             </div>
