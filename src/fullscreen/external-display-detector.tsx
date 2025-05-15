@@ -24,128 +24,100 @@ export function ExternalDisplayDetector({ active, onContinue }: ExternalDisplayD
     const [showDebugInfo, setShowDebugInfo] = useState(false)
     const checkAttempts = useRef(0)
 
-    // Function to check for external displays with multiple methods
+    // Function to check for external displays with simplified, reliable methods
     const checkForExternalDisplays = () => {
         checkAttempts.current += 1
-        const detectionMethods: { method: string; result: boolean; details: string }[] = []
+        const detectionResults: Record<string, any> = {}
         let externalDisplayDetected = false
 
         try {
-            // Method 1: Check using screen.width vs window.innerWidth
+            // Get all screen metrics for debugging
             const screenWidth = window.screen.width
             const screenHeight = window.screen.height
-            const innerWidth = window.innerWidth
-            const innerHeight = window.innerHeight
-            const widthRatio = screenWidth / innerWidth
-            const heightRatio = screenHeight / innerHeight
-
-            const method1Result = widthRatio > 1.5 || heightRatio > 1.5
-            detectionMethods.push({
-                method: "Screen vs Window Size",
-                result: method1Result,
-                details: `Screen: ${screenWidth}x${screenHeight}, Window: ${innerWidth}x${innerHeight}, Ratios: ${widthRatio.toFixed(2)}/${heightRatio.toFixed(2)}`,
-            })
-
-            if (method1Result) externalDisplayDetected = true
-
-            // Method 2: Check using screen.availWidth vs window.innerWidth
             const availWidth = window.screen.availWidth
             const availHeight = window.screen.availHeight
-            const availWidthRatio = availWidth / innerWidth
-            const availHeightRatio = availHeight / innerHeight
+            const innerWidth = window.innerWidth
+            const innerHeight = window.innerHeight
+            const outerWidth = window.outerWidth
+            const outerHeight = window.outerHeight
+            const devicePixelRatio = window.devicePixelRatio
 
-            const method2Result = availWidthRatio > 1.5 || availHeightRatio > 1.5
-            detectionMethods.push({
-                method: "Available Screen vs Window",
-                result: method2Result,
-                details: `Available: ${availWidth}x${availHeight}, Ratios: ${availWidthRatio.toFixed(2)}/${availHeightRatio.toFixed(2)}`,
-            })
-
-            if (method2Result) externalDisplayDetected = true
-
-            // Method 3: Check if screen.width is significantly different from screen.availWidth
-            const widthDiff = Math.abs(screenWidth - availWidth)
-            const heightDiff = Math.abs(screenHeight - availHeight)
-
-            const method3Result = widthDiff > 200 || heightDiff > 200
-            detectionMethods.push({
-                method: "Screen vs Available Difference",
-                result: method3Result,
-                details: `Width diff: ${widthDiff}px, Height diff: ${heightDiff}px`,
-            })
-
-            if (method3Result) externalDisplayDetected = true
-
-            // Method 4: Check using devicePixelRatio
-            const pixelRatio = window.devicePixelRatio
-            const method4Result = pixelRatio < 0.95 || pixelRatio > 1.05
-            detectionMethods.push({
-                method: "Device Pixel Ratio",
-                result: method4Result,
-                details: `Pixel ratio: ${pixelRatio}`,
-            })
-
-            if (method4Result) externalDisplayDetected = true
-
-            // Method 5: Check if window.screen.isExtended is available (Chrome/Edge)
-            if ("isExtended" in window.screen) {
-                const isExtended = (window.screen as any).isExtended
-                detectionMethods.push({
-                    method: "screen.isExtended API",
-                    result: isExtended,
-                    details: `isExtended: ${isExtended}`,
-                })
-
-                if (isExtended) externalDisplayDetected = true
-            } else {
-                detectionMethods.push({
-                    method: "screen.isExtended API",
-                    result: false,
-                    details: "API not available",
-                })
+            detectionResults.metrics = {
+                screen: `${screenWidth}x${screenHeight}`,
+                available: `${availWidth}x${availHeight}`,
+                inner: `${innerWidth}x${innerHeight}`,
+                outer: `${outerWidth}x${outerHeight}`,
+                pixelRatio: devicePixelRatio,
             }
 
-            // Method 6: Check using media queries
-            if (window.matchMedia) {
-                try {
-                    const multipleScreens = window.matchMedia("(min-device-pixel-ratio: 0.9), (max-device-pixel-ratio: 1.1)")
-                    detectionMethods.push({
-                        method: "Media Query",
-                        result: multipleScreens.matches,
-                        details: `matches: ${multipleScreens.matches}`,
-                    })
+            // Method 1: Use screen.isExtended API (most reliable when available)
+            if ("isExtended" in window.screen) {
+                const isExtended = (window.screen as any).isExtended
+                detectionResults.isExtendedAPI = isExtended
 
-                    if (multipleScreens.matches) {
-                        // Additional verification needed as this can give false positives
-                        // Only count this if another method also detected an external display
-                        if (externalDisplayDetected) {
-                            externalDisplayDetected = true
-                        }
-                    }
-                } catch (err) {
-                    detectionMethods.push({
-                        method: "Media Query",
-                        result: false,
-                        details: `Error: ${err}`,
-                    })
+                if (isExtended) {
+                    externalDisplayDetected = true
+                }
+            } else {
+                detectionResults.isExtendedAPI = "Not available"
+            }
+
+            // Method 2: Check for significant difference between screen and available dimensions
+            // This can indicate multiple monitors in some configurations
+            const screenAvailWidthDiff = Math.abs(screenWidth - availWidth)
+            const screenAvailHeightDiff = Math.abs(screenHeight - availHeight)
+
+            detectionResults.screenAvailDiff = {
+                width: screenAvailWidthDiff,
+                height: screenAvailHeightDiff,
+            }
+
+            // If the difference is very large (more than typical taskbar/dock)
+            if (screenAvailWidthDiff > 300 || screenAvailHeightDiff > 300) {
+                externalDisplayDetected = true
+            }
+
+            // Method 3: Check for unusual device pixel ratio
+            // Most single displays have a pixel ratio close to 1.0, 1.5, 2.0, or 3.0
+            detectionResults.pixelRatioCheck = {
+                value: devicePixelRatio,
+                isUnusual:
+                    devicePixelRatio < 0.9 ||
+                    (devicePixelRatio > 1.1 && devicePixelRatio < 1.4) ||
+                    (devicePixelRatio > 2.1 && devicePixelRatio < 1.9) ||
+                    devicePixelRatio > 3.1,
+            }
+
+            if (detectionResults.pixelRatioCheck.isUnusual) {
+                // This is a weaker signal, so only use it if another method also detected something
+                if (externalDisplayDetected) {
+                    externalDisplayDetected = true
                 }
             }
 
-            // Build debug info string
-            const debugInfoText = detectionMethods
-                .map((m) => `${m.method}: ${m.result ? "✓" : "✗"} - ${m.details}`)
-                .join("\n")
+            // Method 4: Check for unusual screen dimensions
+            // Most laptops and monitors have standard aspect ratios
+            const aspectRatio = screenWidth / screenHeight
+            detectionResults.aspectRatio = {
+                value: aspectRatio.toFixed(2),
+                isUnusual: aspectRatio < 1.3 || aspectRatio > 2.1,
+            }
 
-            setDebugInfo(debugInfoText)
+            // Build debug info string
+            setDebugInfo(JSON.stringify(detectionResults, null, 2))
 
             // Update state based on detection
             setHasExternalDisplay(externalDisplayDetected)
+
+            console.log("External display detection result:", externalDisplayDetected)
+            console.log("Detection details:", detectionResults)
 
             // Show warning if external display detected and component is active
             if (externalDisplayDetected && active) {
                 setShowWarning(true)
             } else if (active) {
                 // If no external display and component is active, continue
+                console.log("No external display detected, continuing to coding page")
                 setShowWarning(false)
                 onContinue()
             }
@@ -156,6 +128,7 @@ export function ExternalDisplayDetector({ active, onContinue }: ExternalDisplayD
             // If detection fails after multiple attempts, allow the user to continue
             if (checkAttempts.current > 2) {
                 if (active) {
+                    console.log("Detection failed multiple times, continuing anyway")
                     onContinue()
                 }
             } else {
@@ -168,6 +141,7 @@ export function ExternalDisplayDetector({ active, onContinue }: ExternalDisplayD
     // Check for external displays when component mounts and when active changes
     useEffect(() => {
         if (active) {
+            console.log("External display detector activated")
             // Reset attempts counter
             checkAttempts.current = 0
 
@@ -182,6 +156,7 @@ export function ExternalDisplayDetector({ active, onContinue }: ExternalDisplayD
 
     // Handle retry - check again if external displays have been disconnected
     const handleRetry = () => {
+        console.log("Retrying external display detection")
         checkForExternalDisplays()
     }
 
@@ -191,7 +166,7 @@ export function ExternalDisplayDetector({ active, onContinue }: ExternalDisplayD
                 <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                        External Display Detected
+                        Multiple Displays Detected
                     </AlertDialogTitle>
                     <AlertDialogDescription className="text-gray-300">
                         <div className="flex flex-col items-center my-4">

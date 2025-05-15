@@ -70,6 +70,7 @@ function App() {
   }, [])
 
   const handleSelectProblem = (problem: Problem) => {
+    console.log("Problem selected:", problem.title)
     setSelectedProblem(problem)
     // Start the display check process
     setCheckingDisplays(true)
