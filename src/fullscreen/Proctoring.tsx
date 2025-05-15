@@ -13,23 +13,24 @@ interface Face {
         width: number;
         height: number;
     };
-    confidence?: number;
+    confidence?: number; // Use 'confidence' instead of 'score', optional as per library
     keypoints: { x: number; y: number; name?: string }[];
 }
 
 // Define props interface
 interface ProctoringProps {
     active: boolean;
-    onViolation: (reason: string) => void; // Still required but won't be used
+    onViolation: (reason: string) => void;
 }
 
-const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
+const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isProctoring, setIsProctoring] = useState<boolean>(false);
     const [noFaceCount, setNoFaceCount] = useState<number>(0);
     const [tabSwitchCount, setTabSwitchCount] = useState<number>(0);
     const [detector, setDetector] = useState<faceDetection.FaceDetector | null>(null);
+    const MAX_VIOLATIONS: number = 3;
     const NO_FACE_TIMEOUT: number = 5000; // 5 seconds
 
     // Initialize webcam and TensorFlow.js
@@ -88,6 +89,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
                 toast.error("Proctoring Setup Failed", {
                     description: "Unable to access webcam. Please allow webcam access.",
                 });
+                onViolation("Webcam access denied.");
             }
         };
 
@@ -104,7 +106,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
             setDetector(null);
             setIsProctoring(false);
         };
-    }, [active]);
+    }, [active, onViolation]);
 
     // Process faces with proper typing
     const processFaces = useCallback(
@@ -118,22 +120,32 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
                 } else if (currentTime - lastNoFaceTime >= NO_FACE_TIMEOUT) {
                     setNoFaceCount((prev) => {
                         const newCount = prev + 1;
-                        console.log(`[Proctoring] No face violation count: ${newCount}`);
-                        toast.warning(`No face detected (${newCount})`, {
-                            description: "Please stay in the camera view.",
-                        });
-                        return newCount;
+                        console.log(`[Proctoring] No face violation count: ${newCount}/${MAX_VIOLATIONS}`);
+                        if (newCount >= MAX_VIOLATIONS) {
+                            onViolation("Too many no-face detections. Please stay in camera view.");
+                            return 0;
+                        } else {
+                            toast.warning(`No face detected (${newCount}/${MAX_VIOLATIONS})`, {
+                                description: "Please stay in the camera view.",
+                            });
+                            return newCount;
+                        }
                     });
                 }
             } else if (faces.length > 1) {
                 console.log("[Proctoring] Multiple faces detected:", faces);
                 setNoFaceCount((prev) => {
                     const newCount = prev + 1;
-                    console.log(`[Proctoring] Multiple faces violation count: ${newCount}`);
-                    toast.warning(`Multiple faces detected (${newCount})`, {
-                        description: "Only one person is allowed during the test.",
-                    });
-                    return newCount;
+                    console.log(`[Proctoring] Multiple faces violation count: ${newCount}/${MAX_VIOLATIONS}`);
+                    if (newCount >= MAX_VIOLATIONS) {
+                        onViolation("Too many multiple-face detections.");
+                        return 0;
+                    } else {
+                        toast.warning(`Multiple faces detected (${newCount}/${MAX_VIOLATIONS})`, {
+                            description: "Only one person is allowed during the test.",
+                        });
+                        return newCount;
+                    }
                 });
                 setLastNoFaceTime(null);
             } else {
@@ -142,7 +154,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
                 console.log("[Proctoring] Single face detected, counters reset.");
             }
         },
-        []
+        [onViolation]
     );
 
     // Run face detection
@@ -205,11 +217,16 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
             console.log("[Proctoring] Tab switch detected at:", new Date().toISOString());
             setTabSwitchCount((prev) => {
                 const newCount = prev + 1;
-                console.log(`[Proctoring] Tab switch violation count: ${newCount}`);
-                toast.warning(`Tab switch detected (${newCount})`, {
-                    description: "Switching tabs is not allowed during the test.",
-                });
-                return newCount;
+                console.log(`[Proctoring] Tab switch violation count: ${newCount}/${MAX_VIOLATIONS}`);
+                if (newCount >= MAX_VIOLATIONS) {
+                    onViolation("Too many tab switches detected.");
+                    return 0;
+                } else {
+                    toast.warning(`Tab switch detected (${newCount}/${MAX_VIOLATIONS})`, {
+                        description: "Switching tabs is not allowed during the test.",
+                    });
+                    return newCount;
+                }
             });
         };
 
@@ -219,7 +236,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
             window.removeEventListener("blur", handleBlur);
             console.log("[Proctoring] Tab switch event listener removed.");
         };
-    }, [active]);
+    }, [active, onViolation]);
 
     if (!active) return null;
 
