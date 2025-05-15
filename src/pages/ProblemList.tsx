@@ -4,7 +4,27 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Tag, ChevronDown, ChevronUp, Code, ClipboardList, Filter, BookOpen } from "lucide-react"
+import {
+    Search,
+    Tag,
+    ChevronDown,
+    ChevronUp,
+    Code,
+    ClipboardList,
+    Filter,
+    BookOpen,
+    Maximize2,
+    Shield,
+    Monitor,
+} from "lucide-react"
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+} from "@/components/ui/alert-dialog"
 
 interface Example {
     input: string
@@ -56,6 +76,8 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
     const [selectedTag, setSelectedTag] = useState<string | null>(null)
     const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null)
     const [expandedProblem, setExpandedProblem] = useState<number | null>(null)
+    const [showFullScreenWarning, setShowFullScreenWarning] = useState(false)
+    const [problemToStart, setProblemToStart] = useState<Problem | null>(null)
 
     const validProblems = Array.isArray(problems) ? problems : []
 
@@ -73,6 +95,18 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
 
     const toggleExpand = (id: number) => {
         setExpandedProblem(expandedProblem === id ? null : id)
+    }
+
+    const handleStartProblem = (problem: Problem) => {
+        setProblemToStart(problem)
+        setShowFullScreenWarning(true)
+    }
+
+    const confirmStartProblem = () => {
+        if (problemToStart) {
+            setShowFullScreenWarning(false)
+            onSelectProblem(problemToStart)
+        }
     }
 
     return (
@@ -216,7 +250,14 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
                                             </div>
                                         </div>
 
-                                        <Button className="w-full" onClick={() => onSelectProblem(problem)}>
+                                        <Button
+                                            className="w-full flex items-center justify-center gap-2"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleStartProblem(problem)
+                                            }}
+                                        >
+                                            <Maximize2 className="h-4 w-4" />
                                             Solve this problem
                                         </Button>
                                     </div>
@@ -232,6 +273,58 @@ export function ProblemList({ problems = [], onSelectProblem }: ProblemListProps
                     </div>
                 )}
             </div>
+
+            {/* Full Screen Warning Dialog */}
+            <AlertDialog open={showFullScreenWarning} onOpenChange={setShowFullScreenWarning}>
+                <AlertDialogContent className="bg-[#1e1e2e] text-white border-gray-700">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-purple-400" />
+                            Secure Test Environment Required
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-300">
+                            <p className="mb-2">
+                                This coding test requires a secure environment. The following security checks will be performed:
+                            </p>
+
+                            <div className="flex items-center gap-3 bg-[#2d2d3f] border border-gray-700 rounded-md p-3 my-3">
+                                <Monitor className="h-8 w-8 text-purple-400 flex-shrink-0" />
+                                <div>
+                                    <h3 className="font-medium text-white">Display Configuration Check</h3>
+                                    <p className="text-sm text-gray-300">
+                                        We'll check if you have multiple displays connected. External displays are not allowed during the
+                                        test.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-[#2d2d3f] border border-gray-700 rounded-md p-3 my-3">
+                                <p className="font-semibold text-white mb-2">Security measures:</p>
+                                <ul className="list-disc pl-5 space-y-1 text-gray-300">
+                                    <li>
+                                        <span className="text-red-400 font-medium">Immediate termination:</span> Switching tabs or
+                                        minimizing the window
+                                    </li>
+                                    <li>
+                                        <span className="text-yellow-400 font-medium">Blocked with warning:</span> Developer tools access
+                                        (F12, Ctrl+Shift+I, right-click)
+                                    </li>
+                                    <li>
+                                        <span className="text-yellow-400 font-medium">Three warnings:</span> Exiting full screen mode
+                                    </li>
+                                </ul>
+                            </div>
+                            <p>Please ensure you have saved any work in other applications before continuing.</p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex justify-between">
+                        <Button variant="outline" onClick={() => setShowFullScreenWarning(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={confirmStartProblem}>Continue to Security Check</Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
