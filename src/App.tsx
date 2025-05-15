@@ -1,13 +1,15 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
-import { ProblemList } from "./pages/ProblemList"
-import CodeEditorApp from "./pages/Code-Editor"
-import { AlertCircle, Monitor } from "lucide-react"
-import { FullScreenManager } from "./fullscreen/full-screen-manager"
-import { SecureModeNotification } from "./fullscreen/secure-mode-notification"
-import { ExternalDisplayDetector } from "./fullscreen/external-display-detector"
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { ProblemList } from "./pages/ProblemList";
+import CodeEditorApp from "./pages/Code-Editor";
+import { AlertCircle, Monitor } from "lucide-react";
+import { FullScreenManager } from "./fullscreen/full-screen-manager";
+import { SecureModeNotification } from "./fullscreen/secure-mode-notification";
+import { ExternalDisplayDetector } from "./fullscreen/external-display-detector";
+import Proctoring from "./fullscreen/Proctoring";
+import { Toaster } from "sonner"; // 👈 Add Toaster import
 import {
   AlertDialog,
   AlertDialogContent,
@@ -16,107 +18,100 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogAction,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 interface Example {
-  input: string
-  output: string | boolean
+  input: string;
+  output: string | boolean;
 }
 
 interface Problem {
-  id: number
-  title: string
-  description: string
-  difficulty: string
-  tags: string[]
-  examples: Example[]
-  constraints: string[]
-  cliExplanation: string
-  stdoutExplanation: string
-  testCases: any[]
-  starterCode: any
+  id: number;
+  title: string;
+  description: string;
+  difficulty: string;
+  tags: string[];
+  examples: Example[];
+  constraints: string[];
+  cliExplanation: string;
+  stdoutExplanation: string;
+  testCases: any[];
+  starterCode: any;
 }
 
 function App() {
-  const [problems, setProblems] = useState<Problem[]>([])
-  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [testTerminated, setTestTerminated] = useState(false)
-  const [terminationReason, setTerminationReason] = useState<string>("Your test has been terminated.")
-  const [displayCheckPassed, setDisplayCheckPassed] = useState(false)
-  const [showProblemContent, setShowProblemContent] = useState(false)
-  const [checkingDisplays, setCheckingDisplays] = useState(false)
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [testTerminated, setTestTerminated] = useState(false);
+  const [terminationReason, setTerminationReason] = useState<string>("Your test has been terminated.");
+  const [displayCheckPassed, setDisplayCheckPassed] = useState(false);
+  const [showProblemContent, setShowProblemContent] = useState(false);
+  const [checkingDisplays, setCheckingDisplays] = useState(false);
 
   useEffect(() => {
     async function fetchProblems() {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
-        const response = await fetch("http://10.5.0.21:5000/problems")
-        if (!response.ok) throw new Error(`Error fetching problems: ${response.status}`)
+        const response = await fetch("http://10.5.0.21:5000/problems");
+        if (!response.ok) throw new Error(`Error fetching problems: ${response.status}`);
 
-        const data = await response.json()
-        setProblems(data.problems) // 👈 very important: problems inside `data.problems`
+        const data = await response.json();
+        setProblems(data.problems);
       } catch (err) {
-        console.error("Failed to fetch problems:", err)
-        setError("Failed to load problems. Please try again later.")
+        console.error("Failed to fetch problems:", err);
+        setError("Failed to load problems. Please try again later.");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    fetchProblems()
-  }, [])
+    fetchProblems();
+  }, []);
 
   const handleSelectProblem = (problem: Problem) => {
-    console.log("Problem selected:", problem.title)
-    setSelectedProblem(problem)
-    // Start the display check process
-    setCheckingDisplays(true)
-    setDisplayCheckPassed(false)
-    setShowProblemContent(false)
-  }
+    console.log("Problem selected:", problem.title);
+    setSelectedProblem(problem);
+    setCheckingDisplays(true);
+    setDisplayCheckPassed(false);
+    setShowProblemContent(false);
+  };
 
   const handleDisplayCheckPassed = () => {
-    console.log("Display check passed, proceeding to coding page")
-    setDisplayCheckPassed(true)
-    setShowProblemContent(true)
-    setCheckingDisplays(false)
-  }
+    console.log("Display check passed, proceeding to coding page");
+    setDisplayCheckPassed(true);
+    setShowProblemContent(true);
+    setCheckingDisplays(false);
+  };
 
   const handleBackToList = () => {
-    setSelectedProblem(null)
-    setShowProblemContent(false)
-    setDisplayCheckPassed(false)
-    setCheckingDisplays(false)
-  }
+    setSelectedProblem(null);
+    setShowProblemContent(false);
+    setDisplayCheckPassed(false);
+    setCheckingDisplays(false);
+  };
 
   const handleTestTermination = (reason?: string) => {
-    // Set termination reason if provided
     if (reason) {
-      setTerminationReason(reason)
+      setTerminationReason(reason);
     } else {
-      setTerminationReason("Your test has been terminated.")
+      setTerminationReason("Your test has been terminated.");
     }
-
-    // Show termination dialog
-    setTestTerminated(true)
-
-    // Reset state
-    setSelectedProblem(null)
-    setShowProblemContent(false)
-    setDisplayCheckPassed(false)
-    setCheckingDisplays(false)
-  }
+    setTestTerminated(true);
+    setSelectedProblem(null);
+    setShowProblemContent(false);
+    setDisplayCheckPassed(false);
+    setCheckingDisplays(false);
+  };
 
   const handleCloseTerminationDialog = () => {
-    setTestTerminated(false)
-    // Additional cleanup if needed
-  }
+    setTestTerminated(false);
+  };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-white">Loading Problems...</div>
+    return <div className="flex items-center justify-center h-screen text-white">Loading Problems...</div>;
   }
 
   if (error) {
@@ -127,12 +122,12 @@ function App() {
         <p className="text-center text-gray-400 mb-4">{error}</p>
         <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
-    )
+    );
   }
 
   return (
     <div className="h-screen bg-[#1e1e2e] text-white">
-      {/* External Display Detector - runs when a problem is selected but before showing content */}
+      <Toaster position="top-right" richColors /> {/* 👈 Add Toaster */}
       {checkingDisplays && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[#1e1e2e] p-6 rounded-lg shadow-lg max-w-md text-center">
@@ -146,8 +141,9 @@ function App() {
 
       <FullScreenManager active={showProblemContent} onExit={handleTestTermination}>
         {showProblemContent && selectedProblem ? (
-          <div className="h-full">
+          <div className="h-full relative">
             <SecureModeNotification active={showProblemContent} />
+            <Proctoring active={showProblemContent} onViolation={handleTestTermination} />
             <div className="p-4 bg-[#2d2d3f] border-b border-gray-700">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">{selectedProblem.title}</h1>
@@ -186,7 +182,7 @@ function App() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
