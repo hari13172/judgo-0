@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as faceDetection from "@tensorflow-models/face-detection";
 import { toast } from "sonner";
+import AudioProctoring from "./AudioProctoring"; // Import the new component
 
 // Define types for TensorFlow.js face detection results
 interface Face {
@@ -13,25 +14,28 @@ interface Face {
         width: number;
         height: number;
     };
-    confidence?: number; // Use 'confidence' instead of 'score', optional as per library
+    confidence?: number;
     keypoints: { x: number; y: number; name?: string }[];
 }
 
-// Define props interface
+// Define props interface (removed onViolation)
 interface ProctoringProps {
     active: boolean;
-    onViolation: (reason: string) => void;
 }
 
-const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
+const Proctoring: React.FC<ProctoringProps> = ({ active }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isProctoring, setIsProctoring] = useState<boolean>(false);
     const [noFaceCount, setNoFaceCount] = useState<number>(0);
     const [tabSwitchCount, setTabSwitchCount] = useState<number>(0);
+    const [stream, setStream] = useState<MediaStream | null>(null); // Store the stream to pass to AudioProctoring
     const [detector, setDetector] = useState<faceDetection.FaceDetector | null>(null);
-    const MAX_VIOLATIONS: number = 3;
+    const [lastNoFaceWarning, setLastNoFaceWarning] = useState<number>(0);
+    const [lastMultipleFacesWarning, setLastMultipleFacesWarning] = useState<number>(0);
+    const [lastTabSwitchWarning, setLastTabSwitchWarning] = useState<number>(0);
     const NO_FACE_TIMEOUT: number = 5000; // 5 seconds
+    const WARNING_INTERVAL: number = 5000; // Minimum 5 seconds between same-type warnings
 
     // Initialize webcam and TensorFlow.js
     useEffect(() => {
@@ -60,14 +64,16 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
                 setDetector(loadedDetector);
                 console.log("[Proctoring] Face detection model loaded.");
 
-                // Request webcam access
-                const stream: MediaStream = await navigator.mediaDevices.getUserMedia({
+                // Request webcam access (include audio for AudioProctoring)
+                const mediaStream: MediaStream = await navigator.mediaDevices.getUserMedia({
                     video: true,
+                    audio: true, // Include audio for AudioProctoring
                 });
-                console.log("[Proctoring] Webcam stream obtained:", stream);
+                console.log("[Proctoring] Webcam stream obtained:", mediaStream);
+                setStream(mediaStream);
 
                 if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
+                    videoRef.current.srcObject = mediaStream;
                     videoRef.current.onloadedmetadata = () => {
                         console.log("[Proctoring] Video metadata loaded, starting playback...");
                         videoRef.current!.play()
@@ -87,9 +93,8 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
                 const error = err as Error;
                 console.error("[Proctoring] Setup failed:", error.message);
                 toast.error("Proctoring Setup Failed", {
-                    description: "Unable to access webcam. Please allow webcam access.",
+                    description: "Unable to access webcam or microphone. Please allow access.",
                 });
-                onViolation("Webcam access denied.");
             }
         };
 
@@ -103,10 +108,11 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
                 tracks.forEach((track) => track.stop());
                 console.log("[Proctoring] Webcam stream stopped.");
             }
+            setStream(null);
             setDetector(null);
             setIsProctoring(false);
         };
-    }, [active, onViolation]);
+    }, [active]);
 
     // Process faces with proper typing
     const processFaces = useCallback(
@@ -120,32 +126,28 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
                 } else if (currentTime - lastNoFaceTime >= NO_FACE_TIMEOUT) {
                     setNoFaceCount((prev) => {
                         const newCount = prev + 1;
-                        console.log(`[Proctoring] No face violation count: ${newCount}/${MAX_VIOLATIONS}`);
-                        if (newCount >= MAX_VIOLATIONS) {
-                            onViolation("Too many no-face detections. Please stay in camera view.");
-                            return 0;
-                        } else {
-                            toast.warning(`No face detected (${newCount}/${MAX_VIOLATIONS})`, {
+                        console.log(`[Proctoring] No face violation count: ${newCount}`);
+                        if (currentTime - lastNoFaceWarning >= WARNING_INTERVAL) {
+                            toast.warning(`No face detected (${newCount})`, {
                                 description: "Please stay in the camera view.",
                             });
-                            return newCount;
+                            setLastNoFaceWarning(currentTime);
                         }
+                        return newCount;
                     });
                 }
             } else if (faces.length > 1) {
                 console.log("[Proctoring] Multiple faces detected:", faces);
                 setNoFaceCount((prev) => {
                     const newCount = prev + 1;
-                    console.log(`[Proctoring] Multiple faces violation count: ${newCount}/${MAX_VIOLATIONS}`);
-                    if (newCount >= MAX_VIOLATIONS) {
-                        onViolation("Too many multiple-face detections.");
-                        return 0;
-                    } else {
-                        toast.warning(`Multiple faces detected (${newCount}/${MAX_VIOLATIONS})`, {
+                    console.log(`[Proctoring] Multiple faces violation count: ${newCount}`);
+                    if (currentTime - lastMultipleFacesWarning >= WARNING_INTERVAL) {
+                        toast.warning(`Multiple faces detected (${newCount})`, {
                             description: "Only one person is allowed during the test.",
                         });
-                        return newCount;
+                        setLastMultipleFacesWarning(currentTime);
                     }
+                    return newCount;
                 });
                 setLastNoFaceTime(null);
             } else {
@@ -154,7 +156,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
                 console.log("[Proctoring] Single face detected, counters reset.");
             }
         },
-        [onViolation]
+        [lastNoFaceWarning, lastMultipleFacesWarning]
     );
 
     // Run face detection
@@ -217,16 +219,15 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
             console.log("[Proctoring] Tab switch detected at:", new Date().toISOString());
             setTabSwitchCount((prev) => {
                 const newCount = prev + 1;
-                console.log(`[Proctoring] Tab switch violation count: ${newCount}/${MAX_VIOLATIONS}`);
-                if (newCount >= MAX_VIOLATIONS) {
-                    onViolation("Too many tab switches detected.");
-                    return 0;
-                } else {
-                    toast.warning(`Tab switch detected (${newCount}/${MAX_VIOLATIONS})`, {
+                console.log(`[Proctoring] Tab switch violation count: ${newCount}`);
+                const currentTime = Date.now();
+                if (currentTime - lastTabSwitchWarning >= WARNING_INTERVAL) {
+                    toast.warning(`Tab switch detected (${newCount})`, {
                         description: "Switching tabs is not allowed during the test.",
                     });
-                    return newCount;
+                    setLastTabSwitchWarning(currentTime);
                 }
+                return newCount;
             });
         };
 
@@ -236,7 +237,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
             window.removeEventListener("blur", handleBlur);
             console.log("[Proctoring] Tab switch event listener removed.");
         };
-    }, [active, onViolation]);
+    }, [active, lastTabSwitchWarning]);
 
     if (!active) return null;
 
@@ -245,6 +246,7 @@ const Proctoring: React.FC<ProctoringProps> = ({ active, onViolation }) => {
             <h4 className="text-xs text-gray-300 mb-1">Proctoring</h4>
             <video ref={videoRef} width="160" height="120" autoPlay muted className="rounded" />
             <canvas ref={canvasRef} width="160" height="120" className="hidden" />
+            <AudioProctoring active={active} stream={stream} />
         </div>
     );
 };

@@ -8,8 +8,8 @@ import { AlertCircle, Monitor } from "lucide-react";
 import { FullScreenManager } from "./fullscreen/full-screen-manager";
 import { SecureModeNotification } from "./fullscreen/secure-mode-notification";
 import { ExternalDisplayDetector } from "./fullscreen/external-display-detector";
-import Proctoring from "./fullscreen/Proctoring";
-import { Toaster } from "sonner"; // 👈 Add Toaster import
+import Proctoring from "./fullscreen/Proctoring"; // Fixed import path
+import { Toaster } from "sonner";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -49,6 +49,7 @@ function App() {
   const [displayCheckPassed, setDisplayCheckPassed] = useState(false);
   const [showProblemContent, setShowProblemContent] = useState(false);
   const [checkingDisplays, setCheckingDisplays] = useState(false);
+  const [isReadyForFullScreen, setIsReadyForFullScreen] = useState(false); // New state for user interaction
 
   useEffect(() => {
     async function fetchProblems() {
@@ -77,13 +78,20 @@ function App() {
     setCheckingDisplays(true);
     setDisplayCheckPassed(false);
     setShowProblemContent(false);
+    setIsReadyForFullScreen(false);
   };
 
   const handleDisplayCheckPassed = () => {
-    console.log("Display check passed, proceeding to coding page");
+    console.log("Display check passed, waiting for user to start test...");
     setDisplayCheckPassed(true);
-    setShowProblemContent(true);
     setCheckingDisplays(false);
+    // Show a button for the user to start the test (ensures user interaction for fullscreen)
+  };
+
+  const handleStartTest = () => {
+    console.log("User started the test, entering fullscreen...");
+    setShowProblemContent(true);
+    setIsReadyForFullScreen(true);
   };
 
   const handleBackToList = () => {
@@ -91,6 +99,7 @@ function App() {
     setShowProblemContent(false);
     setDisplayCheckPassed(false);
     setCheckingDisplays(false);
+    setIsReadyForFullScreen(false);
   };
 
   const handleTestTermination = (reason?: string) => {
@@ -104,6 +113,7 @@ function App() {
     setShowProblemContent(false);
     setDisplayCheckPassed(false);
     setCheckingDisplays(false);
+    setIsReadyForFullScreen(false);
   };
 
   const handleCloseTerminationDialog = () => {
@@ -127,7 +137,7 @@ function App() {
 
   return (
     <div className="h-screen bg-[#1e1e2e] text-white">
-      <Toaster position="top-right" richColors /> {/* 👈 Add Toaster */}
+      <Toaster position="top-right" richColors />
       {checkingDisplays && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-[#1e1e2e] p-6 rounded-lg shadow-lg max-w-md text-center">
@@ -139,11 +149,23 @@ function App() {
         </div>
       )}
 
-      <FullScreenManager active={showProblemContent} onExit={handleTestTermination}>
+      {displayCheckPassed && !showProblemContent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[#1e1e2e] p-6 rounded-lg shadow-lg max-w-md text-center">
+            <h2 className="text-xl font-bold mb-2">Ready to Start Test</h2>
+            <p className="text-gray-300 mb-4">Click the button below to start your test in fullscreen mode.</p>
+            <Button onClick={handleStartTest} className="bg-purple-500 hover:bg-purple-600">
+              Start Test
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <FullScreenManager active={isReadyForFullScreen} onExit={handleTestTermination}>
         {showProblemContent && selectedProblem ? (
           <div className="h-full relative">
             <SecureModeNotification active={showProblemContent} />
-            <Proctoring active={showProblemContent} onViolation={handleTestTermination} />
+            <Proctoring active={showProblemContent} /> {/* Removed onViolation */}
             <div className="p-4 bg-[#2d2d3f] border-b border-gray-700">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">{selectedProblem.title}</h1>
