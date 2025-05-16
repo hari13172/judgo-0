@@ -8,7 +8,7 @@ import { AlertCircle, Monitor } from "lucide-react";
 import { FullScreenManager } from "./fullscreen/full-screen-manager";
 import { SecureModeNotification } from "./fullscreen/secure-mode-notification";
 import { ExternalDisplayDetector } from "./fullscreen/external-display-detector";
-import Proctoring from "./fullscreen/Proctoring"; // Fixed import path
+import Proctoring from "./fullscreen/Proctoring";
 import { Toaster } from "sonner";
 import {
   AlertDialog,
@@ -49,7 +49,7 @@ function App() {
   const [displayCheckPassed, setDisplayCheckPassed] = useState(false);
   const [showProblemContent, setShowProblemContent] = useState(false);
   const [checkingDisplays, setCheckingDisplays] = useState(false);
-  const [isReadyForFullScreen, setIsReadyForFullScreen] = useState(false); // New state for user interaction
+  const [isReadyForFullScreen, setIsReadyForFullScreen] = useState(false);
 
   useEffect(() => {
     async function fetchProblems() {
@@ -63,7 +63,7 @@ function App() {
         const data = await response.json();
         setProblems(data.problems);
       } catch (err) {
-        console.error("Failed to fetch problems:", err);
+        console.error("[App] Failed to fetch problems:", err);
         setError("Failed to load problems. Please try again later.");
       } finally {
         setLoading(false);
@@ -73,7 +73,7 @@ function App() {
   }, []);
 
   const handleSelectProblem = (problem: Problem) => {
-    console.log("Problem selected:", problem.title);
+    console.log("[App] Problem selected:", problem.title);
     setSelectedProblem(problem);
     setCheckingDisplays(true);
     setDisplayCheckPassed(false);
@@ -82,19 +82,26 @@ function App() {
   };
 
   const handleDisplayCheckPassed = () => {
-    console.log("Display check passed, waiting for user to start test...");
+    console.log("[App] Display check passed, waiting for user to start test...");
     setDisplayCheckPassed(true);
     setCheckingDisplays(false);
-    // Show a button for the user to start the test (ensures user interaction for fullscreen)
   };
 
   const handleStartTest = () => {
-    console.log("User started the test, entering fullscreen...");
+    console.log("[App] User started the test, setting up fullscreen...");
     setShowProblemContent(true);
     setIsReadyForFullScreen(true);
   };
 
+  // Ensure fullscreen is triggered after DOM updates
+  useEffect(() => {
+    if (showProblemContent && isReadyForFullScreen) {
+      console.log("[App] ShowProblemContent and isReadyForFullScreen are true, expecting fullscreen...");
+    }
+  }, [showProblemContent, isReadyForFullScreen]);
+
   const handleBackToList = () => {
+    console.log("[App] Back to problem list, stopping proctoring and exiting fullscreen...");
     setSelectedProblem(null);
     setShowProblemContent(false);
     setDisplayCheckPassed(false);
@@ -103,20 +110,18 @@ function App() {
   };
 
   const handleTestTermination = (reason?: string) => {
-    if (reason) {
-      setTerminationReason(reason);
-    } else {
-      setTerminationReason("Your test has been terminated.");
-    }
+    console.log("[App] Test terminated, stopping proctoring...");
+    setTerminationReason(reason || "Your test has been terminated due to exiting fullscreen mode.");
     setTestTerminated(true);
     setSelectedProblem(null);
-    setShowProblemContent(false);
+    setShowProblemContent(false); // This sets active to false for Proctoring
     setDisplayCheckPassed(false);
     setCheckingDisplays(false);
     setIsReadyForFullScreen(false);
   };
 
   const handleCloseTerminationDialog = () => {
+    console.log("[App] Termination dialog closed.");
     setTestTerminated(false);
   };
 
@@ -165,7 +170,7 @@ function App() {
         {showProblemContent && selectedProblem ? (
           <div className="h-full relative">
             <SecureModeNotification active={showProblemContent} />
-            <Proctoring active={showProblemContent} /> {/* Removed onViolation */}
+            <Proctoring active={showProblemContent} onTestTermination={handleTestTermination} />
             <div className="p-4 bg-[#2d2d3f] border-b border-gray-700">
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold">{selectedProblem.title}</h1>

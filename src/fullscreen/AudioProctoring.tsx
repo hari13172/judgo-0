@@ -14,8 +14,10 @@ const AudioProctoring: React.FC<AudioProctoringProps> = ({ active, stream }) => 
     const [lastAudioWarning, setLastAudioWarning] = useState<number>(0);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
+    const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const WARNING_INTERVAL: number = 5000; // Minimum 5 seconds between warnings
-    const AUDIO_THRESHOLD: number = 50; // Adjust this threshold based on testing (0-255)
+    const AUDIO_THRESHOLD: number = 0.1; // RMS threshold (0 to 1), adjust based on testing
+    const FFT_SIZE: number = 128; // Smaller FFT size for better temporal resolution
 
     // Initialize audio context and analyser
     useEffect(() => {
@@ -24,16 +26,32 @@ const AudioProctoring: React.FC<AudioProctoringProps> = ({ active, stream }) => 
             return;
         }
 
+        // Check if the stream has an active audio track
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0 || !audioTracks[0].enabled) {
+            console.log("[AudioProctoring] No active audio track in stream.");
+            toast.error("Audio Proctoring Failed", {
+                description: "No audio track available. Please ensure your microphone is enabled.",
+            });
+            return;
+        }
+
         const setupAudioProctoring = async () => {
             console.log("[AudioProctoring] Setting up...");
             try {
                 const audioContext = new AudioContext();
+                await audioContext.resume(); // Ensure the context is not suspended
+                console.log("[AudioProctoring] AudioContext state:", audioContext.state);
+
                 const analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
+                analyser.fftSize = FFT_SIZE;
                 const source = audioContext.createMediaStreamSource(stream);
                 source.connect(analyser);
+
                 audioContextRef.current = audioContext;
                 analyserRef.current = analyser;
+                sourceRef.current = source;
+
                 console.log("[AudioProctoring] Audio context and analyser set up.");
                 setIsAudioProctoring(true);
             } catch (err: unknown) {
@@ -49,15 +67,22 @@ const AudioProctoring: React.FC<AudioProctoringProps> = ({ active, stream }) => 
 
         return () => {
             console.log("[AudioProctoring] Cleaning up...");
+            if (sourceRef.current) {
+                sourceRef.current.disconnect();
+                console.log("[AudioProctoring] MediaStreamSource disconnected.");
+            }
             if (audioContextRef.current) {
                 audioContextRef.current.close();
                 console.log("[AudioProctoring] Audio context closed.");
             }
             setIsAudioProctoring(false);
+            audioContextRef.current = null;
+            analyserRef.current = null;
+            sourceRef.current = null;
         };
     }, [active, stream]);
 
-    // Audio detection using Web Audio API (loudness detection)
+    // Audio detection using Web Audio API (loudness detection with RMS)
     useEffect(() => {
         if (!isAudioProctoring || !active || !analyserRef.current) {
             console.log(
@@ -73,19 +98,27 @@ const AudioProctoring: React.FC<AudioProctoringProps> = ({ active, stream }) => 
 
         let isMounted = true;
         const bufferLength = analyserRef.current.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
+        const dataArray = new Float32Array(bufferLength);
 
         const detectAudio = () => {
             if (!isMounted || !analyserRef.current) return;
 
-            analyserRef.current.getByteFrequencyData(dataArray);
-            const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+            analyserRef.current.getFloatTimeDomainData(dataArray);
+
+            // Calculate RMS (Root Mean Square) to measure loudness
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i] * dataArray[i];
+            }
+            const rms = Math.sqrt(sum / bufferLength);
+
+            console.log("[AudioProctoring] RMS audio level:", rms);
 
             const currentTime = Date.now();
-            if (average > AUDIO_THRESHOLD) {
+            if (rms > AUDIO_THRESHOLD) {
                 setAudioViolationCount((prev) => {
                     const newCount = prev + 1;
-                    console.log(`[AudioProctoring] Audio violation count: ${newCount}`);
+                    console.log(`[AudioProctoring] Audio violation count: ${newCount}, RMS: ${rms}`);
                     if (currentTime - lastAudioWarning >= WARNING_INTERVAL) {
                         toast.warning(`Audio detected (${newCount})`, {
                             description: "Please avoid making noise during the test.",
