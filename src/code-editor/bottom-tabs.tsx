@@ -22,9 +22,13 @@ interface BottomTabsProps {
     elapsedTime: number
     stdin: string
     language: {
+        id: number
         name: string
         extension: string
+        defaultCode: string
     }
+    isCollapsed: boolean
+    toggleCollapse: () => void
 }
 
 export function BottomTabs({
@@ -42,50 +46,92 @@ export function BottomTabs({
     elapsedTime,
     stdin,
     language,
+    isCollapsed,
+    toggleCollapse,
 }: BottomTabsProps) {
     return (
-        <Tabs defaultValue="test-cases" value={bottomTab} onValueChange={setBottomTab}>
-            <div className="flex items-center px-4 py-2 border-b border-gray-700">
-                <TabsList className="bg-transparent border-0">
-                    <TabsTrigger value="test-cases" className="text-sm data-[state=active]:bg-[#3d3d4f]">
-                        Test Cases
-                    </TabsTrigger>
-                    <TabsTrigger value="terminal" className="text-sm data-[state=active]:bg-[#3d3d4f]">
-                        Terminal
-                    </TabsTrigger>
-                    <TabsTrigger value="stats" className="text-sm data-[state=active]:bg-[#3d3d4f]">
-                        Stats
-                    </TabsTrigger>
-                </TabsList>
-                <div className="ml-auto flex space-x-2">
-                    <Button size="sm" onClick={validateSolution} disabled={isRunning}>
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Validate
-                    </Button>
-                    <Button size="sm" variant="default" onClick={validateSolution} disabled={isRunning}>
-                        Submit
-                    </Button>
+        <div className="h-full flex flex-col transition-all duration-300">
+            <Tabs value={bottomTab} onValueChange={setBottomTab} className="flex-1">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-[#2d2d3f]">
+                    {!isCollapsed && (
+                        <TabsList className="bg-transparent border-0">
+                            <TabsTrigger
+                                value="test-cases"
+                                className="text-sm data-[state=active]:bg-[#3d3d4f]"
+                            >
+                                Test Cases
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="terminal"
+                                className="text-sm data-[state=active]:bg-[#3d3d4f]"
+                            >
+                                Terminal
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="stats"
+                                className="text-sm data-[state=active]:bg-[#3d3d4f]"
+                            >
+                                Stats
+                            </TabsTrigger>
+                        </TabsList>
+                    )}
+                    <div className="flex items-center space-x-2 ml-auto">
+                        {!isCollapsed && (
+                            <>
+                                <Button
+                                    size="sm"
+                                    onClick={validateSolution}
+                                    disabled={isRunning}
+                                    className="flex items-center"
+                                >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Validate
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={validateSolution}
+                                    disabled={isRunning}
+                                >
+                                    Submit
+                                </Button>
+                            </>
+                        )}
+                        <button
+                            className="p-2 text-white text-sm"
+                            onClick={toggleCollapse}
+                            aria-label={isCollapsed ? "Expand terminal" : "Collapse terminal"}
+                        >
+                            {isCollapsed ? "↑" : "↓"}
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <TabsContent value="test-cases" className="p-0 m-0">
-                <TestCasesPanel
-                    selectedProblem={selectedProblem}
-                    activeTestTab={activeTestTab}
-                    setActiveTestTab={setActiveTestTab}
-                    onUseTestCase={useTestCase}
-                    copyToClipboard={copyToClipboard}
-                    output={output}
-                />
-            </TabsContent>
-
-            <TabsContent value="terminal" className="p-0">
-                <TerminalOutput output={output} stdin={stdin} language={language} />
-            </TabsContent>
-
-            <TabsContent value="stats" className="p-4">
-                <StatsPanel elapsedTime={elapsedTime} testResults={testResults} selectedProblem={selectedProblem} />
-            </TabsContent>
-        </Tabs>
+                {!isCollapsed && (
+                    <>
+                        <TabsContent value="test-cases" className="p-0 m-0 h-full">
+                            <TestCasesPanel
+                                selectedProblem={selectedProblem}
+                                activeTestTab={activeTestTab}
+                                setActiveTestTab={setActiveTestTab}
+                                onUseTestCase={useTestCase}
+                                copyToClipboard={copyToClipboard}
+                                output={output}
+                            />
+                        </TabsContent>
+                        <TabsContent value="terminal" className="p-0 h-full">
+                            <TerminalOutput output={output} stdin={stdin} language={language} />
+                        </TabsContent>
+                        <TabsContent value="stats" className="p-4 h-full">
+                            <StatsPanel
+                                elapsedTime={elapsedTime}
+                                testResults={testResults}
+                                selectedProblem={selectedProblem}
+                            />
+                        </TabsContent>
+                    </>
+                )}
+            </Tabs>
+        </div>
     )
 }

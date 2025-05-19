@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import Editor from "@monaco-editor/react"
 import { toast } from "sonner"
 import { codingProblems } from "../problems/CodingProblems"
@@ -63,6 +63,15 @@ export default function CodeEditorApp() {
     const timerRef = useRef<NodeJS.Timeout | null>(null)
     const [showResultsDialog, setShowResultsDialog] = useState<boolean>(false)
 
+    // New states for resize and collapse
+    const [sidebarWidth, setSidebarWidth] = useState<number>(350)
+    const [terminalHeight, setTerminalHeight] = useState<number>(200)
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
+    const [isTerminalCollapsed, setIsTerminalCollapsed] = useState<boolean>(false)
+    const sidebarRef = useRef<HTMLDivElement>(null)
+    const terminalRef = useRef<HTMLDivElement>(null)
+    const isResizing = useRef<boolean>(false)
+
     // Fetch languages from API
     useEffect(() => {
         const fetchLanguages = async () => {
@@ -115,7 +124,6 @@ export default function CodeEditorApp() {
         const selectedLang = languages.find((lang) => lang.name === langName)
         if (selectedLang) {
             try {
-                // Send POST request with language ID
                 const response = await fetch(LANGUAGE_API, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -144,7 +152,6 @@ export default function CodeEditorApp() {
             } catch (error: any) {
                 console.error("Error fetching language details:", error)
                 toast.error("Failed to load language details", { description: error.message })
-                // Fallback to the language from the languages array
                 setSelectedLanguage(langName)
                 setLanguage(selectedLang)
                 if (selectedProblem && selectedProblem.starterCode && selectedProblem.starterCode[selectedLang.id]) {
@@ -189,7 +196,7 @@ export default function CodeEditorApp() {
                     source_code: code,
                     language_id: language.id,
                     command_line_arguments: stdin,
-                    expected_output: expectedOutput, // Restored expected_output field
+                    expected_output: expectedOutput,
                 }),
             })
 
@@ -212,21 +219,6 @@ export default function CodeEditorApp() {
                 actualOutput = `Execution Error: ${result.status?.description || "Unknown error"}`
             }
             setOutput(actualOutput)
-
-            // if (matchingTestCase) {
-            //     const expectedOutput = matchingTestCase.expectedOutput.trim()
-            //     const passed = actualOutput === expectedOutput
-
-            //     if (passed) {
-            //         setOutput(`${actualOutput}\n\n✅ Success! Output matches expected result.`)
-            //         toast.success("Test passed!", { description: "Your code produced the expected output." })
-            //     } else {
-            //         setOutput(`${actualOutput}\n\n❌ Failed! Expected: "${expectedOutput}", but got: "${actualOutput}"`)
-            //         toast.error("Test failed", { description: "Output doesn't match expected result." })
-            //     }
-            // } else {
-
-            // }
         } catch (error: any) {
             console.error("Error running code:", error)
             setOutput(`Error: ${error.message || "Unknown error occurred"}`)
@@ -412,6 +404,73 @@ export default function CodeEditorApp() {
         setElapsedTime(0)
     }
 
+    // Resize and collapse handlers
+    const startSidebarResize = useCallback((e: MouseEvent) => {
+        isResizing.current = true
+        document.addEventListener("mousemove", resizeSidebar)
+        document.addEventListener("mouseup", stopResize)
+    }, [])
+
+    const resizeSidebar = useCallback((e: MouseEvent) => {
+        if (isResizing.current && sidebarRef.current) {
+            const newWidth = e.clientX - sidebarRef.current.getBoundingClientRect().left
+            if (newWidth >= 200 && newWidth <= 600) {
+                setSidebarWidth(newWidth)
+            }
+        }
+    }, [])
+
+    const startTerminalResize = useCallback((e: MouseEvent) => {
+        isResizing.current = true
+        document.addEventListener("mousemove", resizeTerminal)
+        document.addEventListener("mouseup", stopResize)
+    }, [])
+
+    const resizeTerminal = useCallback((e: MouseEvent) => {
+        if (isResizing.current && terminalRef.current) {
+            const containerHeight = window.innerHeight
+            const newHeight = containerHeight - e.clientY
+            if (newHeight >= 100 && newHeight <= 400) {
+                setTerminalHeight(newHeight)
+            }
+        }
+    }, [])
+
+    const stopResize = useCallback(() => {
+        isResizing.current = false
+        document.removeEventListener("mousemove", resizeSidebar)
+        document.removeEventListener("mousemove", resizeTerminal)
+        document.removeEventListener("mouseup", stopResize)
+    }, [resizeSidebar, resizeTerminal])
+
+    const toggleSidebarCollapse = () => {
+        setIsSidebarCollapsed((prev) => !prev)
+        setSidebarWidth(isSidebarCollapsed ? 350 : 50)
+    }
+
+    const toggleTerminalCollapse = () => {
+        setIsTerminalCollapsed((prev) => !prev)
+        setTerminalHeight(isTerminalCollapsed ? 200 : 30)
+    }
+
+    // Optional: Persist sizes to localStorage
+    /*
+    useEffect(() => {
+        const savedSidebarWidth = localStorage.getItem("sidebarWidth")
+        const savedTerminalHeight = localStorage.getItem("terminalHeight")
+        if (savedSidebarWidth) setSidebarWidth(Number(savedSidebarWidth))
+        if (savedTerminalHeight) setTerminalHeight(Number(savedTerminalHeight))
+    }, [])
+
+    useEffect(() => {
+        localStorage.setItem("sidebarWidth", sidebarWidth.toString())
+    }, [sidebarWidth])
+
+    useEffect(() => {
+        localStorage.setItem("terminalHeight", terminalHeight.toString())
+    }, [terminalHeight])
+    */
+
     if (isLoading) {
         return <div className="flex items-center justify-center h-screen bg-[#1e1e2e] text-white">Loading languages...</div>
     }
@@ -437,14 +496,26 @@ export default function CodeEditorApp() {
             />
 
             <div className="flex flex-1 overflow-hidden">
-                <div className="w-[350px] bg-[#2d2d3f] text-white overflow-y-auto">
+                <div
+                    ref={sidebarRef}
+                    className="bg-[#2d2d3f] text-white overflow-y-auto relative transition-all duration-300"
+                    style={{ width: isSidebarCollapsed ? 50 : sidebarWidth }}
+                >
                     <ProblemSidebar
                         selectedProblem={selectedProblem}
                         sidebarTab={sidebarTab}
                         setSidebarTab={setSidebarTab}
                         copyToClipboard={copyToClipboard}
                         setStdin={setStdin}
+                        isCollapsed={isSidebarCollapsed}
+                        toggleCollapse={toggleSidebarCollapse}
                     />
+                    {!isSidebarCollapsed && (
+                        <div
+                            className="absolute top-0 right-0 w-2 h-full bg-gray-600 cursor-ew-resize hover:bg-gray-500"
+                            onMouseDown={(e) => startSidebarResize(e.nativeEvent)}
+                        />
+                    )}
                 </div>
 
                 <div className="flex-1 flex flex-col overflow-hidden">
@@ -482,7 +553,17 @@ export default function CodeEditorApp() {
                         handleCliKeyDown={handleCliKeyDown}
                     />
 
-                    <div className="bg-[#2d2d3f] border-t border-gray-700">
+                    <div
+                        ref={terminalRef}
+                        className="bg-[#2d2d3f] border-t border-gray-700 relative transition-all duration-300"
+                        style={{ height: isTerminalCollapsed ? 30 : terminalHeight }}
+                    >
+                        {!isTerminalCollapsed && (
+                            <div
+                                className="absolute top-0 left-0 w-full h-2 bg-gray-600 cursor-ns-resize hover:bg-gray-500"
+                                onMouseDown={(e) => startTerminalResize(e.nativeEvent)}
+                            />
+                        )}
                         <BottomTabs
                             bottomTab={bottomTab}
                             setBottomTab={setBottomTab}
@@ -498,6 +579,8 @@ export default function CodeEditorApp() {
                             elapsedTime={elapsedTime}
                             stdin={stdin}
                             language={language ?? { id: 0, name: "", extension: "plaintext", defaultCode: "" }}
+                            isCollapsed={isTerminalCollapsed}
+                            toggleCollapse={toggleTerminalCollapse}
                         />
                     </div>
                 </div>
